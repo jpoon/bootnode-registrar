@@ -11,3 +11,4 @@ RUN go get -u github.com/golang/dep/... \
 RUN make
 
 CMD ["./bootnode-registrar"]
+EXPOSE 9898

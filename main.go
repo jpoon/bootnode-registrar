@@ -55,8 +55,8 @@ func getEnodes(addressRecord string) {
 	for _, v := range bootnodes {
 		buffer.WriteString(fmt.Sprintf("\"%s\"", v))
 
-		if i < len(enodes)-1 {
-			buffer.WriteString(fmt.Sprintf(","))
+		if i < len(bootnodes)-1 {
+			buffer.WriteString(",")
 		}
 
 		buffer.WriteString(fmt.Sprintf("\n"))
@@ -82,6 +82,6 @@ func main() {
 	log.Info("Starting...")
 	go startPollGetEnodes("bootnode-service.default.svc.cluster.local")
 	http.HandleFunc("/", webHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":9898", nil)
 	log.Info("Exiting")
 }
