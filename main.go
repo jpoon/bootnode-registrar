@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -22,7 +23,8 @@ var (
 func getEnodes(addressRecord string) {
 	ipAddresses, err := ResolveAddressRecord(addressRecord)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("Error resolving A record: %s", err)
+		return
 	}
 
 	log.Printf("A Record [%s] resolved to  %s", addressRecord, ipAddresses)
@@ -34,16 +36,18 @@ func getEnodes(addressRecord string) {
 
 		resp, err := http.Get(fmt.Sprintf("http://%s:%s", ipAddress, "8080"))
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error on HTTP GET: %s", err)
+			return
 		}
 		defer resp.Body.Close()
 		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error parsing response: %s", err)
+			return
 		}
 
 		bootnodes[ipAddress] = strings.TrimSpace(string(contents))
-		log.Printf("%s. Adding %s", ipAddress, bootnodes[ipAddress])
+		log.Infof("%s. Adding %s", ipAddress, bootnodes[ipAddress])
 	}
 
 	i := 0
@@ -70,12 +74,14 @@ func startPollGetEnodes(addressRecord string) {
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Request from %s", r.RemoteAddr)
+	log.Infof("Request from %s", r.RemoteAddr)
 	fmt.Fprintln(w, enodes)
 }
 
 func main() {
+	log.Info("Starting...")
 	go startPollGetEnodes("bootnode-service.default.svc.cluster.local")
 	http.HandleFunc("/", webHandler)
 	http.ListenAndServe(":8080", nil)
+	log.Info("Exiting")
 }
