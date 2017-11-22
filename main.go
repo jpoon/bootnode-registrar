@@ -4,74 +4,78 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-var (
-	enodes = make(map[string]struct{})
-	buffer *bytes.Buffer
+const (
+	pollingDuration time.Duration = 60 * time.Second
 )
 
-func getEnodes() {
-	ipList, err := ResolveAddressRecord("bootnode-service.default.svc.cluster.local")
+var (
+	bootnodes = make(map[string]string)
+	enodes    string
+)
+
+func getEnodes(addressRecord string) {
+	ipAddresses, err := ResolveAddressRecord(addressRecord)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 
-	for _, ip := range ipList {
-		response, err := http.Get(fmt.Sprintf("http://%s:%s", ip, "8080"))
-		if err != nil {
-			fmt.Println(err)
-			return
+	log.Printf("A Record [%s] resolved to  %s", addressRecord, ipAddresses)
+	for _, ipAddress := range ipAddresses {
+		if _, ok := bootnodes[ipAddress]; ok {
+			log.Printf("%s. Already exists.", ipAddresses)
+			continue
 		}
 
-		defer response.Body.Close()
-		contents, err := ioutil.ReadAll(response.Body)
+		resp, err := http.Get(fmt.Sprintf("http://%s:%s", ipAddress, "8080"))
 		if err != nil {
-			fmt.Printf("%s", err)
-			return
+			log.Fatal(err)
+		}
+		defer resp.Body.Close()
+		contents, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
 		}
 
-		enode := strings.TrimSpace(string(contents))
-		if _, ok := enodes[enode]; !ok {
-			enodes[enode] = struct{}{}
-		}
+		bootnodes[ipAddress] = strings.TrimSpace(string(contents))
+		log.Printf("%s. Adding %s", ipAddress, bootnodes[ipAddress])
 	}
 
-	i := 1
-	newBuffer := bytes.NewBufferString("")
-	newBuffer.WriteString(fmt.Sprintf("[\n"))
-	for k := range enodes {
-		newBuffer.WriteString(fmt.Sprintf("\"%s\"", k))
+	i := 0
+	buffer := bytes.NewBufferString("[\n")
+	for _, v := range bootnodes {
+		buffer.WriteString(fmt.Sprintf("\"%s\"", v))
 
-		if i < len(enodes) {
-			newBuffer.WriteString(fmt.Sprintf(","))
+		if i < len(enodes)-1 {
+			buffer.WriteString(fmt.Sprintf(","))
 		}
 
-		newBuffer.WriteString(fmt.Sprintf("\n"))
+		buffer.WriteString(fmt.Sprintf("\n"))
 		i++
 	}
-	newBuffer.WriteString(fmt.Sprintf("]\n"))
-
-	buffer = newBuffer
+	buffer.WriteString(fmt.Sprintf("]\n"))
+	enodes = buffer.String()
 }
 
-func startPolling() {
+func startPollGetEnodes(addressRecord string) {
 	for {
-		go getEnodes()
-		<-time.After(10 * time.Second)
+		go getEnodes(addressRecord)
+		<-time.After(pollingDuration)
 	}
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, buffer.String())
+	log.Printf("Request from %s", r.RemoteAddr)
+	fmt.Fprintln(w, enodes)
 }
 
 func main() {
-	go startPolling()
+	go startPollGetEnodes("bootnode-service.default.svc.cluster.local")
 	http.HandleFunc("/", webHandler)
 	http.ListenAndServe(":8080", nil)
 }
