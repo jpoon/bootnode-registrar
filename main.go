@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -27,7 +29,7 @@ func getEnodes(addressRecord string) {
 		return
 	}
 
-	log.Printf("A Record [%s] resolved to  %s", addressRecord, ipAddresses)
+	log.Printf("A Record {%s} resolved to  %s", addressRecord, ipAddresses)
 	for _, ipAddress := range ipAddresses {
 		if _, ok := bootnodes[ipAddress]; ok {
 			log.Printf("%s. Already exists.", ipAddresses)
@@ -79,8 +81,17 @@ func webHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	log.Info("Starting...")
-	go startPollGetEnodes("bootnode-service.default.svc.cluster.local")
+	bootNodeService := flag.String("service", os.Getenv("BOOTNODE_SERVICE"), "DNS A Record for `bootnode` services. Alternatively set `BOOTNODE_SERVICE` env.")
+	flag.Parse()
+
+	if *bootNodeService == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	log.Infof("Starting. A Record={%s}.", *bootNodeService)
+
+	go startPollGetEnodes(*bootNodeService)
 	http.HandleFunc("/", webHandler)
 	http.ListenAndServe(":9898", nil)
 	log.Info("Exiting")
