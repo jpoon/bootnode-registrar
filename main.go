@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 var (
 	enodes = make(map[string]struct{})
+	buffer bytes.Buffer
 )
 
 func getEnodes() {
@@ -38,6 +40,20 @@ func getEnodes() {
 			enodes[enode] = struct{}{}
 		}
 	}
+
+	i := 1
+	buffer.WriteString(fmt.Sprintf("[\n"))
+	for k := range enodes {
+		buffer.WriteString(fmt.Sprintf("\"%s\"", k))
+
+		if i < len(enodes) {
+			buffer.WriteString(fmt.Sprintf(","))
+		}
+
+		buffer.WriteString(fmt.Sprintf("\n"))
+		i++
+	}
+	buffer.WriteString(fmt.Sprintf("]\n"))
 }
 
 func startPolling() {
@@ -48,20 +64,7 @@ func startPolling() {
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "[")
-
-	i := 1
-	for k := range enodes {
-		fmt.Fprintf(w, "\"%s\"", k)
-
-		if i < len(enodes) {
-			fmt.Fprintf(w, ",")
-		}
-
-		fmt.Fprintln(w, "")
-		i++
-	}
-	fmt.Fprintln(w, "]")
+	fmt.Fprintln(w, buffer.String())
 }
 
 func main() {
