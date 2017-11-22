@@ -11,7 +11,7 @@ import (
 
 var (
 	enodes = make(map[string]struct{})
-	buffer bytes.Buffer
+	buffer *bytes.Buffer
 )
 
 func getEnodes() {
@@ -42,18 +42,21 @@ func getEnodes() {
 	}
 
 	i := 1
-	buffer.WriteString(fmt.Sprintf("[\n"))
+	newBuffer := bytes.NewBufferString("")
+	newBuffer.WriteString(fmt.Sprintf("[\n"))
 	for k := range enodes {
-		buffer.WriteString(fmt.Sprintf("\"%s\"", k))
+		newBuffer.WriteString(fmt.Sprintf("\"%s\"", k))
 
 		if i < len(enodes) {
-			buffer.WriteString(fmt.Sprintf(","))
+			newBuffer.WriteString(fmt.Sprintf(","))
 		}
 
-		buffer.WriteString(fmt.Sprintf("\n"))
+		newBuffer.WriteString(fmt.Sprintf("\n"))
 		i++
 	}
-	buffer.WriteString(fmt.Sprintf("]\n"))
+	newBuffer.WriteString(fmt.Sprintf("]\n"))
+
+	buffer = newBuffer
 }
 
 func startPolling() {
