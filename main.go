@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
 var (
-	enodes map[string]struct{}
+	enodes = make(map[string]struct{})
 )
 
 func getEnodes() {
@@ -19,8 +20,7 @@ func getEnodes() {
 	}
 
 	for _, ip := range ipList {
-		fmt.Println("ip:", ip)
-		response, err := http.Get(fmt.Sprintf("%s:%s", ip, "8080"))
+		response, err := http.Get(fmt.Sprintf("http://%s:%s", ip, "8080"))
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -33,24 +33,35 @@ func getEnodes() {
 			return
 		}
 
-		if _, ok := enodes[string(contents)]; !ok {
-			enodes[string(contents)] = struct{}{}
+		enode := strings.TrimSpace(string(contents))
+		if _, ok := enodes[enode]; !ok {
+			enodes[enode] = struct{}{}
 		}
 	}
 }
 
 func startPolling() {
 	for {
-		<-time.After(2 * time.Second)
 		go getEnodes()
+		<-time.After(10 * time.Second)
 	}
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
-	for _, enode := range enodes {
-		fmt.Println(w, enode)
+	fmt.Fprintln(w, "[")
+
+	i := 1
+	for k := range enodes {
+		fmt.Fprintf(w, "\"%s\"", k)
+
+		if i < len(enodes) {
+			fmt.Fprintf(w, ",")
+		}
+
+		fmt.Fprintln(w, "")
+		i++
 	}
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+	fmt.Fprintln(w, "]")
 }
 
 func main() {
