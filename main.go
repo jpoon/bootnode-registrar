@@ -53,18 +53,16 @@ func getEnodes(addressRecord string) {
 	}
 
 	i := 0
-	buffer := bytes.NewBufferString("[\n")
+	buffer := bytes.NewBufferString("")
 	for _, v := range bootnodes {
-		buffer.WriteString(fmt.Sprintf("\"%s\"", v))
+		buffer.WriteString(v)
 
 		if i < len(bootnodes)-1 {
 			buffer.WriteString(",")
 		}
 
-		buffer.WriteString(fmt.Sprintf("\n"))
 		i++
 	}
-	buffer.WriteString(fmt.Sprintf("]\n"))
 	enodes = buffer.String()
 }
 
