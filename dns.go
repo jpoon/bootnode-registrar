@@ -38,7 +38,7 @@ func query(fqdn string, qtype uint16) (*dns.Msg, error) {
 	return nil, errors.New("no name server to answer the question")
 }
 
-func ResolveDns(dnsName string) ([]string, error) {
+func ResolveAddressRecord(dnsName string) ([]string, error) {
 	var err error
 	conf, err = dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil || conf == nil {
