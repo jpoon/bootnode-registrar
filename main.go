@@ -15,6 +15,7 @@ import (
 
 const (
 	pollingDuration time.Duration = 60 * time.Second
+	listeningPort                 = ":9898"
 )
 
 var (
@@ -87,10 +88,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Infof("Starting. A Record={%s}.", *bootNodeService)
+	log.Infof("Starting bootnode-registrar. {%s}.", *bootNodeService)
 
 	go startPollGetEnodes(*bootNodeService)
 	http.HandleFunc("/", webHandler)
-	http.ListenAndServe(":9898", nil)
-	log.Info("Exiting")
+	log.Fatal(http.ListenAndServe(listeningPort, nil))
 }
