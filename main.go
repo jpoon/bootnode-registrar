@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -19,61 +20,61 @@ const (
 )
 
 var (
-	enodes string
+	mu            sync.RWMutex
+	ethereumNodes string
 )
 
-func getEnodes(addressRecord string) {
+func updateEthereumNodes(addressRecord string) {
+	buffer := bytes.NewBufferString("")
+
 	ipAddresses, err := ResolveAddressRecord(addressRecord)
 	if err != nil {
 		log.Errorf("Error resolving DNS address record: %s", err)
-		return
+		goto updateNodes
 	}
 
 	log.Printf("%s resolved to %s", addressRecord, ipAddresses)
 
-	var bootnodes = make(map[string]struct{})
 	for _, ipAddress := range ipAddresses {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%s", ipAddress, "8080"))
 		if err != nil {
 			log.Errorf("Error retrieving enode address: %s", err)
-			return
+			goto updateNodes
 		}
 		defer resp.Body.Close()
 		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Errorf("Error parsing response: %s", err)
-			return
+			goto updateNodes
 		}
 
 		var enodeAddress = strings.TrimSpace(string(contents))
-		bootnodes[enodeAddress] = struct{}{}
+		if buffer.Len() > 0 {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString(enodeAddress)
 		log.Infof("%s with enode address %s", ipAddress, enodeAddress)
 	}
 
-	i := 0
-	buffer := bytes.NewBufferString("")
-	for k := range bootnodes {
-		buffer.WriteString(k)
-
-		if i < len(bootnodes)-1 {
-			buffer.WriteString(",")
-		}
-
-		i++
-	}
-	enodes = buffer.String()
+updateNodes:
+	mu.Lock()
+	defer mu.Unlock()
+	ethereumNodes = buffer.String()
 }
 
-func startPollGetEnodes(addressRecord string) {
+func startPollUpdateEthereumNodes(addressRecord string) {
 	for {
-		go getEnodes(addressRecord)
+		go updateEthereumNodes(addressRecord)
 		<-time.After(pollingDuration)
 	}
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("handling request from %s", r.RemoteAddr)
-	fmt.Fprintln(w, enodes)
+
+	mu.RLock()
+	defer mu.RUnlock()
+	fmt.Fprintln(w, ethereumNodes)
 }
 
 func main() {
@@ -87,7 +88,7 @@ func main() {
 
 	log.Infof("starting bootnode-registrar. {%s}.", *bootNodeService)
 
-	go startPollGetEnodes(*bootNodeService)
+	go startPollUpdateEthereumNodes(*bootNodeService)
 	http.HandleFunc("/", webHandler)
 	log.Fatal(http.ListenAndServe(listeningPort, nil))
 }
