@@ -27,6 +27,7 @@ var (
 func updateEthereumNodes(addressRecord string) {
 	buffer := bytes.NewBufferString("")
 
+	// Resolve DNS A record to a set of IP addresses
 	ipAddresses, err := ResolveAddressRecord(addressRecord)
 	if err != nil {
 		log.Errorf("Error resolving DNS address record: %s", err)
@@ -35,6 +36,7 @@ func updateEthereumNodes(addressRecord string) {
 
 	log.Printf("%s resolved to %s", addressRecord, ipAddresses)
 
+	// Retrieve enode from each IP address
 	for _, ipAddress := range ipAddresses {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%s", ipAddress, "8080"))
 		if err != nil {
@@ -57,6 +59,7 @@ func updateEthereumNodes(addressRecord string) {
 	}
 
 updateNodes:
+	// Update list
 	mu.Lock()
 	defer mu.Unlock()
 	ethereumNodes = buffer.String()
@@ -87,7 +90,6 @@ func main() {
 	}
 
 	log.Infof("starting bootnode-registrar. {%s}.", *bootNodeService)
-
 	go startPollUpdateEthereumNodes(*bootNodeService)
 	http.HandleFunc("/", webHandler)
 	log.Fatal(http.ListenAndServe(listeningPort, nil))
