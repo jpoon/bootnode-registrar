@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	pollingDuration time.Duration = 60 * time.Second
+	pollingDuration time.Duration = 20 * time.Second
 	listeningPort                 = ":9898"
 )
 
