@@ -73,7 +73,7 @@ func startPollUpdateEthereumNodes(addressRecord string) {
 }
 
 func webHandler(w http.ResponseWriter, r *http.Request) {
-	log.Infof("handling request from %s", r.RemoteAddr)
+	log.Debugf("handling request from %s", r.RemoteAddr)
 
 	mu.RLock()
 	defer mu.RUnlock()
@@ -89,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Infof("starting bootnode-registrar. {%s}.", *bootNodeService)
+	log.Infof("starting bootnode-registrar: %s.", *bootNodeService)
 	go startPollUpdateEthereumNodes(*bootNodeService)
 	http.HandleFunc("/", webHandler)
 	log.Fatal(http.ListenAndServe(listeningPort, nil))
